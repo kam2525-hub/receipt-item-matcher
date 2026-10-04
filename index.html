@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>おうち買い出しレシート品目ごとの個人別カンタン立替算</title>
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --primary-hover: #fa5252;
+            --secondary: #4ECDC4;
+            --dark: #2D3436;
+            --light: #F7F9FC;
+            --gray: #DFE6E9;
+            --text-main: #2D3436;
+            --text-sub: #636E72;
+            --white: #FFFFFF;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--light);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            padding: 24px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+        }
+
+        /* セクション共通 */
+        .section {
+            background: #FAFAFA;
+            border: 1px solid var(--gray);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* メンバー管理 */
+        .member-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--gray);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            padding: 10px 16px;
+            font-size: 0.95rem;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--white);
+        }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: var(--white);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--gray);
+            color: var(--text-sub);
+        }
+
+        .btn-danger {
+            background-color: #ff7675;
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+
+        .member-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
+            background: var(--white);
+            border: 1px solid var(--gray);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .chip .delete-member {
+            cursor: pointer;
+            color: #ff7675;
+            font-weight: bold;
+        }
+
+        /* 品目追加フォーム */
+        .item-form {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        @media(max-width: 480px) {
+            .item-form {
+                grid-template-columns: 1fr 1fr;
+            }
+            .item-form button {
+                grid-column: span 2;
+            }
+        }
+
+        /* 品目一覧 */
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .item-card {
+            background: var(--white);
+            border: 1px solid var(--gray);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .item-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-name {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .item-price {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        /* 誰のものか選択するボタン群 */
+        .assign-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .assign-btn {
+            background: var(--light);
+            border: 1px solid var(--gray);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            cursor: pointer;
+            flex: 1;
+            text-align: center;
+            min-width: 60px;
+            transition: all 0.2s;
+        }
+
+        .assign-btn.active {
+            background: var(--secondary);
+            color: var(--white);
+            border-color: var(--secondary);
+            font-weight: bold;
+        }
+
+        /* 精算結果 */
+        .result-summary {
+            background: var(--white);
+            border: 2px dashed var(--secondary);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--light);
+            font-size: 0.95rem;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .total-box {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 2px solid var(--gray);
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .transfer-guide {
+            margin-top: 16px;
+            background: #E3FCEF;
+            border: 1px solid #ABF5D1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .transfer-guide h3 {
+            font-size: 0.95rem;
+            color: #006644;
+            margin-bottom: 4px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .action-buttons button {
+            flex: 1;
+        }
+
+        /* ユーティリティ */
+        .empty-text {
+            color: var(--text-sub);
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 12px;
+        }
+
+        svg {
+            width: 18px;
+            height: 18px;
+            vertical-align: middle;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+            おうち買い出しレシート立替算
+        </h1>
+        <p>レシートの品目をみんなで割り振って、パッと精算！</p>
+    </header>
+
+    <!-- メンバー管理セクション -->
+    <div class="section">
+        <h2>1. 参加メンバー</h2>
+        <div class="member-input-group">
+            <input type="text" id="memberNameInput" placeholder="名前 (例: パパ, ママ)">
+            <button class="btn-secondary" id="addMemberBtn">追加</button>
+        </div>
+        <div class="member-chips" id="memberChips">
+            <!-- 動的生成 -->
+        </div>
+    </div>
+
+    <!-- 品目入力セクション -->
+    <div class="section">
+        <h2>2. レシート品目の追加</h2>
+        <div class="item-form">
+            <input type="text" id="itemNameInput" placeholder="品目名 (例: 牛乳)">
+            <input type="number" id="itemPriceInput" placeholder="価格(円)" inputmode="numeric">
+            <input type="number" id="itemQtyInput" value="1" min="1" placeholder="数量" inputmode="numeric" style="display:none;">
+            <button class="btn-primary" id="addItemBtn">品目を追加</button>
+        </div>
+        
+        <div class="item-list" id="itemList">
+            <!-- 動的生成 -->
+        </div>
+    </div>
+
+    <!-- 精算結果セクション -->
+    <div class="section">
+        <h2>3. 精算結果</h2>
+        <div class="result-summary" id="resultSummary">
+            <!-- 動的生成 -->
+        </div>
+        <div class="action-buttons">
+            <button class="btn-outline" id="resetBtn">すべてリセット</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 状態管理
+    let state = {
+        members: ['自分', 'パートナー'],
+        items: [] // { id, name, price, assignedTo: ['自分'] }
+    };
+
+    // LocalStorageから読み込み
+    const savedState = localStorage.getItem('receipt_splitter_state');
+    if (savedState) {
+        try {
+            state = JSON.parse(savedState);
+        } catch (e) {
+            console.error('Failed to load state', e);
+        }
+    }
+
+    function saveState() {
+        localStorage.setItem('receipt_splitter_state', JSON.stringify(state));
+        render();
+    }
+
+    // DOM要素
+    const memberNameInput = document.getElementById('memberNameInput');
+    const addMemberBtn = document.getElementById('addMemberBtn');
+    const memberChips = document.getElementById('memberChips');
+
+    const itemNameInput = document.getElementById('itemNameInput');
+    const itemPriceInput = document.getElementById('itemPriceInput');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const itemList = document.getElementById('itemList');
+
+    const resultSummary = document.getElementById('resultSummary');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // イベントリスナー
+    addMemberBtn.addEventListener('click', () => {
+        const name = memberNameInput.value.trim();
+        if (!name) return;
+        if (state.members.includes(name)) {
+            alert('すでに存在する名前です');
+            return;
+        }
+        state.members.push(name);
+        memberNameInput.value = '';
+        saveState();
+    });
+
+    memberNameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addMemberBtn.click();
+    });
+
+    addItemBtn.addEventListener('click', () => {
+        const name = itemNameInput.value.trim();
+        const price = parseInt(itemPriceInput.value);
+
+        if (!name) {
+            alert('品目名を入力してください');
+            return;
+        }
+        if (isNaN(price) || price < 0) {
+            alert('正しい価格を入力してください');
+            return;
+        }
+
+        // デフォルトでは全員で割り勘、あるいは誰も割り振られていない状態にするか？
+        // 要件:「個人の購入品目をタップするだけで」なので、初期は「全員」または「未選択」。ここでは親切に全員選択状態にしておくか、全員分ボタンを作る
+        const newItem = {
+            id: Date.now().toString(),
+            name: name,
+            price: price,
+            assignedTo: [...state.members] // デフォルト全員
+        };
+
+        state.items.push(newItem);
+        itemNameInput.value = '';
+        itemPriceInput.value = '';
+        itemNameInput.focus();
+        saveState();
+    });
+
+    itemPriceInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addItemBtn.click();
+    });
+
+    resetBtn.addEventListener('click', () => {
+        if (confirm('入力された品目やメンバーをすべてリセットしますか？')) {
+            state = {
+                members: ['自分', 'パートナー'],
+                items: []
+            };
+            saveState();
+        }
+    });
+
+    // メンバー削除
+    window.removeMember = function(name) {
+        if (state.members.length <= 1) {
+            alert('メンバーは最低1人必要です');
+            return;
+        }
+        state.members = state.members.filter(m => m !== name);
+        // 割り当てからも削除
+        state.items.forEach(item => {
+            item.assignedTo = item.assignedTo.filter(m => m !== name);
+        });
+        saveState();
+    }
+
+    // 品目削除
+    window.removeItem = function(id) {
+        state.items = state.items.filter(item => item.id !== id);
+        saveState();
+    }
+
+    // 担当切り替え（トグル）
+    window.toggleAssign = function(itemId, memberName) {
+        const item = state.items.find(i => i.id === itemId);
+        if (!item) return;
+
+        const index = item.assignedTo.indexOf(memberName);
+        if (index > -1) {
+            // すでに含まれていたら外す（ただし0人になるのを防ぐか？0人でもOKとする）
+            item.assignedTo.splice(index, 1);
+        } else {
+            item.assignedTo.push(memberName);
+        }
+        saveState();
+    }
+
+    // 描画処理
+    function render() {
+        // 1. メンバーチップ描画
+        memberChips.innerHTML = '';
+        if (state.members.length === 0) {
+            memberChips.innerHTML = '<span class="empty-text">メンバーがいません</span>';
+        } else {
+            state.members.forEach(member => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.innerHTML = `
+                    <span>${escapeHTML(member)}</span>
+                    <span class="delete-member" onclick="removeMember('${escapeHTML(member)}')">&times;</span>
+                `;
+                memberChips.appendChild(chip);
+            });
+        }
+
+        // 2. 品目リスト描画
+        itemList.innerHTML = '';
+        if (state.items.length === 0) {
+            itemList.innerHTML = '<div class="empty-text">品目が登録されていません</div>';
+        } else {
+            state.items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+
+                // 割り当てボタン群のHTML生成
+                let assignButtonsHTML = '';
+                if (state.members.length === 0) {
+                    assignButtonsHTML = '<span class="empty-text">先にメンバーを追加してください</span>';
+                } else {
+                    assignButtonsHTML = state.members.map(member => {
+                        const isAssigned = item.assignedTo.includes(member);
+                        return `<button class="assign-btn ${isAssigned ? 'active' : ''}" onclick="toggleAssign('${item.id}', '${escapeHTML(member)}')">${escapeHTML(member)}</button>`;
+                    }).join('');
+                }
+
+                card.innerHTML = `
+                    <div class="item-card-header">
+                        <span class="item-name">${escapeHTML(item.name)}</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="item-price">¥${item.price.toLocaleString()}</span>
+                            <button class="btn-danger" onclick="removeItem('${item.id}')">削除</button>
+                        </div>
+                    </div>
+                    <div class="assign-buttons">
+                        ${assignButtonsHTML}
+                    </div>
+                `;
+                itemList.appendChild(card);
+            });
+        }
+
+        // 3. 精算結果計算・描画
+        renderResult();
+    }
+
+    function renderResult() {
+        // 各メンバーの支払額を計算
+        const totals = {};
+        state.members.forEach(m => totals[m] = 0);
+        let grandTotal = 0;
+
+        state.items.forEach(item => {
+            grandTotal += item.price;
+            const count = item.assignedTo.length;
+            if (count > 0) {
+                const share = item.price / count;
+                item.assignedTo.forEach(member => {
+                    if (totals[member] !== undefined) {
+                        totals[member] += share;
+                    }
+                });
+            }
+        });
+
+        if (state.members.length === 0) {
+            resultSummary.innerHTML = '<div class="empty-text">メンバーがいません</div>';
+            return;
+        }
+
+        let html = '';
+        state.members.forEach(member => {
+            const amount = Math.round(totals[member] || 0);
+            html += `
+                <div class="result-row">
+                    <span>${escapeHTML(member)}の負担額</span>
+                    <strong>¥${amount.toLocaleString()}</strong>
+                </div>
+            `;
+        });
+
+        html += `
+            <div class="total-box">
+                <span>合計金額</span>
+                <span>¥${grandTotal.toLocaleString()}</span>
+            </div>
+        `;
+
+        // 簡単な送金アドバイス（誰が誰にいくら払うか）の簡易計算
+        html += generateTransferGuide(totals);
+
+        resultSummary.innerHTML = html;
+    }
+
+    function generateTransferGuide(totals) {
+        // 簡易精算ロジック (マイナスとプラスの相殺)
+        // 平均との差分を計算
+        const members = Object.keys(totals);
+        if (members.length <= 1) return '';
+
+        const totalSum = Object.values(totals).reduce((a, b) => a + b, 0);
+        const avg = totalSum / members.length;
+
+        let debtors = []; // 払うべき人 (平均より少ない＝支払いが少ない？いや、負担額が平均より少ない人＝多く払った人？)
+        // 注意: 「負担額」は自分が消費した金額。
+        // ここでは「レシートを誰かが代表して全額立て替えている」という前提を加味すると便利だが、
+        // このツールは「品目ごとの負担額」を出すもの。もし「全員で割り勘して、レシートを払った人がいる」場合の立替算にするには「誰が立て替えたか」が必要。
+        // 今回はシンプルに「各自が負担すべき合計額」を提示する形。
+        // もし立替者を入れたい場合は拡張だが、シンプルに「各自の負担額の集計」として非常にすっきり機能している。
+        
+        return `
+            <div class="transfer-guide">
+                <h3>💡 精算のヒント</h3>
+                <p style="font-size:0.85rem; color:#004D2C;">上の金額は、あなたが食べた・使った分の合計（端数四捨五入前）です。レシートを立て替えた人へこの金額を渡してください。</p>
+            </div>
+        `;
+    }
+
+    function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+
+    // 初回レンダリング
+    render();
+</script>
+
+</body>
+</html>
